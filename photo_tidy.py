@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Report the EXIF capture date of every JPEG below a folder."""
+"""Plan how a folder of photos would be sorted into year/month folders."""
 
 import argparse
 import os
 import struct
 import sys
+from collections import namedtuple
 from datetime import datetime
 
 SOI = b"\xff\xd8"
@@ -31,6 +32,10 @@ TYPE_SIZES = {
     12: 8,   # DOUBLE
 }
 PHOTO_EXTENSIONS = (".jpg", ".jpeg")
+
+Move = namedtuple("Move", "source target taken")
+Skip = namedtuple("Skip", "path reason")
+Plan = namedtuple("Plan", "root moves skipped")
 
 
 class ExifError(ValueError):
@@ -129,31 +134,41 @@ def read_datetime(path):
         return None
 
 
-def iter_photos(root):
-    """Every JPEG below *root*, in a stable order."""
+def iter_photos(root, extensions=PHOTO_EXTENSIONS):
+    """Every candidate photo below *root*, in a stable order."""
     found = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
         for name in sorted(filenames):
             if name.startswith("."):
                 continue
-            if os.path.splitext(name)[1].lower() in PHOTO_EXTENSIONS:
+            if os.path.splitext(name)[1].lower() in extensions:
                 found.append(os.path.join(dirpath, name))
     return found
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(prog="photo_tidy", description=__doc__)
-    parser.add_argument("directory", help="folder to scan")
-    args = parser.parse_args(argv)
-    if not os.path.isdir(args.directory):
-        parser.error("%s is not a directory" % args.directory)
-    for path in iter_photos(args.directory):
-        taken = read_datetime(path)
-        stamp = taken.strftime("%Y-%m-%d %H:%M:%S") if taken else "unknown            "
-        print("%s  %s" % (stamp, path))
-    return 0
+def month_folder(root, taken):
+    """The ``<root>/YYYY/MM`` folder a photo taken at *taken* belongs in."""
+    return os.path.join(root, "%04d" % taken.year, "%02d" % taken.month)
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def _numbered(target, counter):
+    stem, extension = os.path.splitext(target)
+    return "%s-%d%s" % (stem, counter, extension)
+
+
+def unique_target(target, claimed=()):
+    """*target* itself, or the first free ``-1``, ``-2``... variant."""
+    candidate = target
+    counter = 1
+    while candidate in claimed or os.path.exists(candidate):
+        candidate = _numbered(target, counter)
+        counter += 1
+    return candidate
+
+
+def build_plan(root, extensions=PHOTO_EXTENSIONS):
+    """Plan the moves that sort *root* into year/month folders."""
+    root = os.path.abspath(root)
+    moves = []
+    skipped = []
