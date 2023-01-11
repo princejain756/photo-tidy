@@ -172,3 +172,17 @@ def build_plan(root, extensions=PHOTO_EXTENSIONS):
     root = os.path.abspath(root)
     moves = []
     skipped = []
+    claimed = set()
+    for path in iter_photos(root, extensions):
+        taken = read_datetime(path)
+        if taken is None:
+            skipped.append(Skip(path, "no capture date"))
+            continue
+        folder = month_folder(root, taken)
+        if os.path.dirname(path) == folder:
+            skipped.append(Skip(path, "already filed"))
+            continue
+        target = unique_target(os.path.join(folder, os.path.basename(path)), claimed)
+        claimed.add(target)
+        moves.append(Move(path, target, taken))
+    return Plan(root, moves, skipped)
