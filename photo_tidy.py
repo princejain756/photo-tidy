@@ -186,3 +186,17 @@ def build_plan(root, extensions=PHOTO_EXTENSIONS):
         claimed.add(target)
         moves.append(Move(path, target, taken))
     return Plan(root, moves, skipped)
+
+
+def display(path, root):
+    """*path* relative to *root* when possible, for shorter report lines."""
+    try:
+        return os.path.relpath(path, root)
+    except ValueError:
+        return path
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="photo_tidy", description=__doc__)
+    parser.add_argument("directory", help="folder to scan")
+    args = parser.parse_args(argv)
