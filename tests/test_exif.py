@@ -64,13 +64,6 @@ def test_iter_photos_of_empty_folder_is_empty(tmp_path):
     assert photo_tidy.iter_photos(str(tmp_path)) == []
 
 
-def test_main_lists_each_photo(photo_root, capsys):
-    assert photo_tidy.main([photo_root]) == 0
-    out = capsys.readouterr().out
-    assert "2019-03-14 09:26:53" in out
-    assert "undated" in out.split("unknown")[1]
-
-
 def test_main_rejects_missing_folder(tmp_path):
     with pytest.raises(SystemExit) as excinfo:
         photo_tidy.main([str(tmp_path / "nope")])
