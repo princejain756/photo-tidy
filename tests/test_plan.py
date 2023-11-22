@@ -87,3 +87,10 @@ def test_photo_already_in_place_is_reported(make_jpeg, tmp_path):
     plan = build_plan(str(tmp_path))
     assert plan.moves == []
     assert plan.skipped[0].reason == "already filed"
+
+
+def test_cli_uses_the_plan_module(photo_root, capsys):
+    import photo_tidy
+
+    photo_tidy.main([photo_root])
+    assert "move   incoming/a.jpg -> 2019/03/a.jpg" in capsys.readouterr().out
