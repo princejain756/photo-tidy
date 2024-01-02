@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import List, NamedTuple, Optional
 
 from .exif import capture_datetime
+from .hashes import find_duplicates
 
 PHOTO_EXTENSIONS = (".jpg", ".jpeg", ".tif", ".tiff", ".png")
 
@@ -26,10 +27,16 @@ class Skip(NamedTuple):
     reason: str
 
 
+class Duplicate(NamedTuple):
+    source: str
+    duplicate: str
+
+
 class Plan(NamedTuple):
     root: str
     moves: List[Move]
     skipped: List[Skip]
+    duplicates: List[Duplicate]
 
 
 def normalise_extensions(extensions=None):
@@ -81,15 +88,28 @@ def unique_target(target, claimed=()):
     return candidate
 
 
-def build_plan(root, extensions=None, fallback_mtime=False):
+def build_plan(root, extensions=None, fallback_mtime=False, collapse_duplicates=False):
     """Plan the moves that sort *root* into year/month folders."""
     root = os.path.abspath(root)
     extensions = normalise_extensions(extensions)
+    candidates = iter_photos(root, extensions)
+
+    dates = {path: capture_datetime(path, fallback_mtime=fallback_mtime) for path in candidates}
+    duplicates = []
+    duplicate_of = {}
+    if collapse_duplicates:
+        for keep, drop in find_duplicates(candidates, dates):
+            duplicates.append(Duplicate(keep, drop))
+            duplicate_of[drop] = keep
+
     moves = []
     skipped = []
     claimed = set()
-    for path in iter_photos(root, extensions):
-        taken = capture_datetime(path, fallback_mtime=fallback_mtime)
+    for path in candidates:
+        taken = dates[path]
+        if path in duplicate_of:
+            skipped.append(Skip(path, "duplicate of %s" % os.path.basename(duplicate_of[path])))
+            continue
         if taken is None:
             skipped.append(Skip(path, "no capture date"))
             continue
@@ -100,12 +120,3 @@ def build_plan(root, extensions=None, fallback_mtime=False):
         target = unique_target(os.path.join(folder, os.path.basename(path)), claimed)
         claimed.add(target)
         moves.append(Move(path, target, taken))
-    return Plan(root, moves, skipped)
-
-
-def display(path, root):
-    """*path* relative to *root* when possible, for shorter report lines."""
-    try:
-        return os.path.relpath(path, root)
-    except ValueError:
-        return path
