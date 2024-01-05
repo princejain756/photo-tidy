@@ -120,3 +120,12 @@ def build_plan(root, extensions=None, fallback_mtime=False, collapse_duplicates=
         target = unique_target(os.path.join(folder, os.path.basename(path)), claimed)
         claimed.add(target)
         moves.append(Move(path, target, taken))
+    return Plan(root, moves, skipped, duplicates)
+
+
+def display(path, root):
+    """*path* relative to *root* when possible, for shorter report lines."""
+    try:
+        return os.path.relpath(path, root)
+    except ValueError:
+        return path
