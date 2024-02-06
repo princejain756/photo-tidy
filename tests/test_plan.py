@@ -64,7 +64,7 @@ def test_plan_does_not_touch_the_filesystem(photo_root):
 
 def test_collision_gets_a_numbered_suffix(make_jpeg):
     first = make_jpeg("same.jpg", datetime_original="2020:05:05 05:05:05", subdir="x")
-    second = make_jpeg("same.jpg", datetime_original="2020:05:05 05:05:05", subdir="y")
+    make_jpeg("same.jpg", datetime_original="2020:05:05 05:05:05", subdir="y")
     plan = build_plan(os.path.dirname(os.path.dirname(first)))
     targets = [move.target for move in plan.moves]
     assert len(targets) == 2
@@ -83,7 +83,9 @@ def test_collision_avoids_a_file_already_on_disk(make_jpeg, tmp_path):
 
 
 def test_photo_already_in_place_is_reported(make_jpeg, tmp_path):
-    make_jpeg("filed.jpg", datetime_original="2020:05:05 05:05:05", subdir=os.path.join("2020", "05"))
+    make_jpeg(
+        "filed.jpg", datetime_original="2020:05:05 05:05:05", subdir=os.path.join("2020", "05")
+    )
     plan = build_plan(str(tmp_path))
     assert plan.moves == []
     assert plan.skipped[0].reason == "already filed"
@@ -94,3 +96,17 @@ def test_cli_uses_the_plan_module(photo_root, capsys):
 
     photo_tidy.main([photo_root])
     assert "move   incoming/a.jpg -> 2019/03/a.jpg" in capsys.readouterr().out
+
+
+def test_duplicates_are_reported_with_their_keeper(make_jpeg, tmp_path):
+    first = make_jpeg("a.jpg", datetime_original="2020:01:01 00:00:00", subdir="in")
+    copy = tmp_path / "in" / "copy.jpg"
+    copy.write_bytes(open(first, "rb").read())
+    plan = build_plan(str(tmp_path), collapse_duplicates=True)
+    assert len(plan.duplicates) == 1
+    assert plan.duplicates[0].source == first
+    assert plan.duplicates[0].duplicate == str(copy)
+
+
+def test_duplicate_copy_is_skipped_not_moved(make_jpeg, tmp_path):
+    first = make_jpeg("a.jpg", datetime_original="2020:01:01 00:00:00", subdir="in")
