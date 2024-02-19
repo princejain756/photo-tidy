@@ -110,3 +110,18 @@ def test_duplicates_are_reported_with_their_keeper(make_jpeg, tmp_path):
 
 def test_duplicate_copy_is_skipped_not_moved(make_jpeg, tmp_path):
     first = make_jpeg("a.jpg", datetime_original="2020:01:01 00:00:00", subdir="in")
+    copy = tmp_path / "in" / "copy.jpg"
+    copy.write_bytes(open(first, "rb").read())
+    plan = build_plan(str(tmp_path), collapse_duplicates=True)
+    skipped = {os.path.basename(item.path): item.reason for item in plan.skipped}
+    assert skipped["copy.jpg"] == "duplicate of a.jpg"
+    assert [os.path.basename(move.source) for move in plan.moves] == ["a.jpg"]
+
+
+def test_duplicates_are_ignored_unless_asked_for(make_jpeg, tmp_path):
+    first = make_jpeg("a.jpg", datetime_original="2020:01:01 00:00:00", subdir="in")
+    copy = tmp_path / "in" / "copy.jpg"
+    copy.write_bytes(open(first, "rb").read())
+    plan = build_plan(str(tmp_path))
+    assert plan.duplicates == []
+    assert len(plan.moves) == 2
