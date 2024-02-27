@@ -125,3 +125,19 @@ def test_duplicates_are_ignored_unless_asked_for(make_jpeg, tmp_path):
     plan = build_plan(str(tmp_path))
     assert plan.duplicates == []
     assert len(plan.moves) == 2
+
+
+def test_identical_content_in_different_months_is_still_a_duplicate(make_jpeg, tmp_path):
+    first = make_jpeg("a.jpg", datetime_original="2020:01:01 00:00:00", subdir="in")
+    copy = tmp_path / "in" / "same.jpg"
+    copy.write_bytes(open(first, "rb").read())
+    plan = build_plan(str(tmp_path), collapse_duplicates=True)
+    assert plan.duplicates[0].source == first
+
+
+def test_undated_duplicate_pair_still_collapses(make_jpeg, tmp_path):
+    first = make_jpeg("a.jpg", subdir="in")
+    copy = tmp_path / "in" / "b.jpg"
+    copy.write_bytes(open(first, "rb").read())
+    plan = build_plan(str(tmp_path), collapse_duplicates=True)
+    assert len(plan.duplicates) == 1
