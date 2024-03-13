@@ -141,3 +141,18 @@ def test_undated_duplicate_pair_still_collapses(make_jpeg, tmp_path):
     copy.write_bytes(open(first, "rb").read())
     plan = build_plan(str(tmp_path), collapse_duplicates=True)
     assert len(plan.duplicates) == 1
+
+
+def test_unique_target_picks_the_first_free_name(tmp_path):
+    (tmp_path / "x.jpg").write_bytes(b"")
+    (tmp_path / "x-1.jpg").write_bytes(b"")
+    assert unique_target(str(tmp_path / "x.jpg")).endswith("x-2.jpg")
+
+
+def test_unique_target_honours_names_claimed_this_run(tmp_path):
+    claimed = {str(tmp_path / "x.jpg")}
+    assert unique_target(str(tmp_path / "x.jpg"), claimed).endswith("x-1.jpg")
+
+
+def test_normalise_extensions_adds_the_dot_and_lowercases():
+    assert normalise_extensions(["JPG", ".tif", "jpg"]) == (".jpg", ".tif")
