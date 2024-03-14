@@ -156,3 +156,18 @@ def test_unique_target_honours_names_claimed_this_run(tmp_path):
 
 def test_normalise_extensions_adds_the_dot_and_lowercases():
     assert normalise_extensions(["JPG", ".tif", "jpg"]) == (".jpg", ".tif")
+
+
+def test_normalise_extensions_defaults_when_empty():
+    assert normalise_extensions([]) == PHOTO_EXTENSIONS
+
+
+def test_prefixed_extensions_are_added(tmp_path):
+    (tmp_path / "raw.cr2").write_bytes(b"")
+    plan = build_plan(str(tmp_path), extensions=("cr2",), fallback_mtime=True)
+    assert [os.path.basename(move.source) for move in plan.moves] == ["raw.cr2"]
+
+
+def test_iter_photos_returns_images_only(photo_root):
+    names = sorted(os.path.basename(path) for path in iter_photos(photo_root))
+    assert names == ["a.jpg", "b.JPG", "c.jpeg", "undated.jpg"]
