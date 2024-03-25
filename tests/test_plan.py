@@ -171,3 +171,19 @@ def test_prefixed_extensions_are_added(tmp_path):
 def test_iter_photos_returns_images_only(photo_root):
     names = sorted(os.path.basename(path) for path in iter_photos(photo_root))
     assert names == ["a.jpg", "b.JPG", "c.jpeg", "undated.jpg"]
+
+
+def test_iter_photos_of_empty_folder_is_empty(tmp_path):
+    assert iter_photos(str(tmp_path)) == []
+
+
+def test_iter_photos_skips_hidden_folders(photo_root):
+    hidden = os.path.join(photo_root, ".thumbnails")
+    os.makedirs(hidden)
+    with open(os.path.join(hidden, "s.jpg"), "wb") as handle:
+        handle.write(b"")
+    assert ".thumbnails" not in "".join(iter_photos(photo_root))
+
+
+def test_display_falls_back_for_unrelated_roots(tmp_path):
+    assert display(str(tmp_path / "deep" / "x.jpg"), str(tmp_path)) == os.path.join("deep", "x.jpg")
