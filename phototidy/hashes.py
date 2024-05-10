@@ -7,6 +7,7 @@ path (then the alphabetically first) stays.
 """
 
 import hashlib
+import os
 from collections import defaultdict
 
 BLOCK_SIZE = 1 << 20
@@ -36,9 +37,15 @@ def group_by_digest(paths, digest=file_digest):
 
 
 def _keeper_order(path, taken_map):
+    """Sort key ranking the likeliest original copy first.
+
+    A dated file beats an undated one, an earlier capture beats a later
+    one, a shallow path beats a nested one, and a short name beats a
+    decorative variant such as ``IMG_0001-copy.jpg``.
+    """
     taken = taken_map.get(path)
-    depth = path.count("__sep__")
-    return (taken is None, taken, depth, path)
+    depth = os.path.dirname(path).count(os.sep)
+    return (taken is None, taken, depth, len(path), path)
 
 
 def choose_keepers(paths, taken_map=None):
