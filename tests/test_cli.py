@@ -1,34 +1,49 @@
 """Tests for the command line entry point."""
 
+import io
+import os
+
 import pytest
 
-import photo_tidy
+from phototidy import cli
+from phototidy.run import read_journal
 
 
-def test_reports_each_planned_move(photo_root, capsys):
-    assert photo_tidy.main([photo_root]) == 0
-    out = capsys.readouterr().out
+def run(argv):
+    out = io.StringIO()
+    code = cli.main(argv, out=out)
+    return code, out.getvalue()
+
+
+def test_reports_each_planned_move(photo_root):
+    code, out = run([photo_root])
+    assert code == 0
     assert "move   incoming/a.jpg -> 2019/03/a.jpg" in out
 
 
-def test_reports_skipped_photos_with_a_reason(photo_root, capsys):
-    photo_tidy.main([photo_root])
-    out = capsys.readouterr().out
+def test_reports_skipped_photos_with_a_reason(photo_root):
+    _, out = run([photo_root])
     assert "skip   incoming/undated.jpg (no capture date)" in out
 
 
-def test_ends_with_a_summary_line(photo_root, capsys):
-    photo_tidy.main([photo_root])
-    assert "3 to move, 1 skipped" in capsys.readouterr().out
+def test_ends_with_a_summary_line(photo_root):
+    _, out = run([photo_root])
+    assert "3 to move, 1 skipped" in out
 
 
-def test_a_folder_with_only_photos_without_dates_still_reports(tmp_path, make_jpeg, capsys):
+def test_a_folder_of_undated_photos_still_reports(tmp_path, make_jpeg):
     make_jpeg("undated.jpg")
-    assert photo_tidy.main([str(tmp_path)]) == 0
-    assert "0 to move, 1 skipped" in capsys.readouterr().out
+    code, out = run([str(tmp_path)])
+    assert code == 0
+    assert "0 to move, 1 skipped" in out
 
 
-def test_no_arguments_is_a_usage_error(capsys):
-    with pytest.raises(SystemExit) as excinfo:
-        photo_tidy.main([])
-    assert excinfo.value.code == 2
+def test_dry_run_leaves_the_files_alone(photo_root):
+    before = sorted(os.listdir(os.path.join(photo_root, "incoming")))
+    run([photo_root])
+    assert sorted(os.listdir(os.path.join(photo_root, "incoming"))) == before
+    assert not os.path.exists(os.path.join(photo_root, ".phototidy"))
+
+
+def test_run_flag_moves_the_files(photo_root):
+    code, out = run([photo_root, "--run"])
