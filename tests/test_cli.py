@@ -47,3 +47,18 @@ def test_dry_run_leaves_the_files_alone(photo_root):
 
 def test_run_flag_moves_the_files(photo_root):
     code, out = run([photo_root, "--run"])
+    assert code == 0
+    assert "move 3 file(s), 0 failed" in out
+    assert os.path.exists(os.path.join(photo_root, "2019", "03", "a.jpg"))
+
+
+def test_run_reports_the_journal_it_wrote(photo_root):
+    _, out = run([photo_root, "--run"])
+    journal = [line for line in out.splitlines() if line.startswith("journal ")][0]
+    assert len(read_journal(journal.split(" ", 1)[1])) == 3
+
+
+def test_undo_puts_the_files_back(photo_root):
+    run([photo_root, "--run"])
+    code, out = run([photo_root, "--undo"])
+    assert code == 0
