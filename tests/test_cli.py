@@ -62,3 +62,19 @@ def test_undo_puts_the_files_back(photo_root):
     run([photo_root, "--run"])
     code, out = run([photo_root, "--undo"])
     assert code == 0
+    assert "restore 3 file(s), 0 failed" in out
+    assert os.path.exists(os.path.join(photo_root, "incoming", "a.jpg"))
+
+
+def test_undo_without_a_previous_run_explains_itself(tmp_path):
+    code, out = run([str(tmp_path), "--undo"])
+    assert code == 1
+    assert "no journal to undo" in out
+
+
+def test_duplicates_flag_reports_and_skips_the_copy(photo_root):
+    copy = os.path.join(photo_root, "incoming", "a-copy.jpg")
+    with open(os.path.join(photo_root, "incoming", "a.jpg"), "rb") as handle:
+        payload = handle.read()
+    with open(copy, "wb") as handle:
+        handle.write(payload)
