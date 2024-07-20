@@ -78,3 +78,18 @@ def test_duplicates_flag_reports_and_skips_the_copy(photo_root):
         payload = handle.read()
     with open(copy, "wb") as handle:
         handle.write(payload)
+    code, out = run([photo_root, "--duplicates"])
+    assert code == 0
+    assert "dup    incoming/a.jpg = incoming/a-copy.jpg" in out
+    assert "duplicate of a.jpg" in out
+    assert "3 to move, 2 skipped" in out
+
+
+def test_ext_flag_adds_an_extension(tmp_path):
+    (tmp_path / "shot.raw").write_bytes(b"raw bytes")
+    code, out = run([str(tmp_path), "--ext", "raw", "--mtime"])
+    assert code == 0
+    assert "1 to move, 0 skipped" in out
+
+
+def test_mtime_flag_files_undated_photos(tmp_path, make_jpeg):
