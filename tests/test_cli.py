@@ -93,3 +93,18 @@ def test_ext_flag_adds_an_extension(tmp_path):
 
 
 def test_mtime_flag_files_undated_photos(tmp_path, make_jpeg):
+    make_jpeg("undated.jpg")
+    code, out = run([str(tmp_path), "--mtime"])
+    assert code == 0
+    assert "1 to move, 0 skipped" in out
+
+
+def test_version_flag_prints_the_version():
+    out = io.StringIO()
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["--version"], out=out)
+    assert excinfo.value.code == 0
+
+
+def test_missing_directory_is_a_usage_error(tmp_path):
+    with pytest.raises(SystemExit) as excinfo:
