@@ -108,3 +108,17 @@ def test_version_flag_prints_the_version():
 
 def test_missing_directory_is_a_usage_error(tmp_path):
     with pytest.raises(SystemExit) as excinfo:
+        run([str(tmp_path / "nope")])
+    assert excinfo.value.code == 2
+
+
+def test_no_arguments_is_a_usage_error():
+    with pytest.raises(SystemExit) as excinfo:
+        run([])
+    assert excinfo.value.code == 2
+
+
+def test_script_entry_point_delegates_to_the_cli():
+    import photo_tidy
+
+    assert photo_tidy.main is cli.main
