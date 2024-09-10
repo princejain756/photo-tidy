@@ -95,7 +95,10 @@ skip   import/IMG_1042-copy.jpg (duplicate of IMG_1042.jpg)
 ```
 make test    # the test suite
 make lint    # pycodestyle over the package and the tests
+make all     # both of the above
 ```
+
+The suite needs only `pytest`; `lint` needs `pycodestyle`.
 
 ## Layout
 
