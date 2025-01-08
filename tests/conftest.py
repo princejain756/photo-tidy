@@ -40,9 +40,13 @@ def tiff_block(datetime_original=None, datetime_tag=None):
     main_entries = b""
     if has_main_text:
         assert len(datetime_tag) + 1 <= ASCII_SIZE
-        main_entries += _entry(TAG_DATETIME, TYPE_ASCII, ASCII_SIZE, struct.pack("<I", main_data_start))
+        main_entries += _entry(
+            TAG_DATETIME, TYPE_ASCII, ASCII_SIZE, struct.pack("<I", main_data_start)
+        )
     if has_sub_ifd:
-        main_entries += _entry(TAG_EXIF_IFD, TYPE_LONG, 1, struct.pack("<I", exif_ifd_offset))
+        main_entries += _entry(
+            TAG_EXIF_IFD, TYPE_LONG, 1, struct.pack("<I", exif_ifd_offset)
+        )
 
     tiff = b"II" + struct.pack("<H", 42) + struct.pack("<I", 8)
     tiff += struct.pack("<H", main_count) + main_entries + struct.pack("<I", 0)
