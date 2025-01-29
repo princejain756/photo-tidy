@@ -16,6 +16,7 @@ APP1_CODE = 0xE1
 EOI_CODE = 0xD9
 SOS_CODE = 0xDA
 EXIF_PREFIX = b"Exif\x00\x00"
+MAX_SEGMENT_SIZE = 0xFFFF
 TAG_DATETIME = 0x0132
 TAG_EXIF_IFD = 0x8769
 TAG_DATETIME_ORIGINAL = 0x9003
@@ -56,6 +57,9 @@ def _ifd_tags(tiff, offset, order):
     if offset <= 0 or offset + 2 > len(tiff):
         raise ExifError("IFD offset outside the EXIF block")
     count = _unpack(order, "H", tiff, offset)
+    if offset + 2 + count * 12 > len(tiff):
+        # Cameras do write odd counts; read what is actually present.
+        count = max(0, (len(tiff) - offset - 2) // 12)
     tags = {}
     for index in range(count):
         entry = offset + 2 + index * 12
@@ -115,10 +119,18 @@ def read_datetime(path):
             if handle.read(2) != SOI:
                 return None
             while True:
-                head = handle.read(2)
-                if len(head) < 2:
+                lead = handle.read(1)
+                if not lead:
                     return None
-                code = head[1]
+                if lead != b"\xff":
+                    continue
+                second = handle.read(1)
+                if not second:
+                    return None
+                code = second[0]
+                if code in (0xFF, 0x00):
+                    # Fill byte or a stuffed zero; the real marker follows.
+                    continue
                 if code in (EOI_CODE, SOS_CODE):
                     return None
                 if code == 0x01 or 0xD0 <= code <= 0xD7:
@@ -129,6 +141,8 @@ def read_datetime(path):
                 size = struct.unpack(">H", size_bytes)[0]
                 if size < 2:
                     return None
+                if size > MAX_SEGMENT_SIZE:
+                    return None
                 payload = handle.read(size - 2)
                 if code == APP1_CODE and payload[:6] == EXIF_PREFIX:
                     return parse_exif_datetime(payload[6:])
@@ -137,8 +151,4 @@ def read_datetime(path):
 
 
 def capture_datetime(path, fallback_mtime=False):
-    """Capture time from EXIF, optionally falling back to the file mtime."""
-    taken = read_datetime(path)
-    if taken is None and fallback_mtime:
-        taken = datetime.fromtimestamp(os.path.getmtime(path))
-    return taken
+    """Capture time from EXIF, optionally falling back to the file mtime.
