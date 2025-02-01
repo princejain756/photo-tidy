@@ -152,3 +152,14 @@ def read_datetime(path):
 
 def capture_datetime(path, fallback_mtime=False):
     """Capture time from EXIF, optionally falling back to the file mtime.
+
+    A file deleted between listing and reading yields ``None`` from the
+    EXIF step; the mtime fallback returns ``None`` for it too.
+    """
+    taken = read_datetime(path)
+    if taken is None and fallback_mtime:
+        try:
+            taken = datetime.fromtimestamp(os.path.getmtime(path))
+        except OSError:
+            return None
+    return taken
