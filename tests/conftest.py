@@ -110,3 +110,19 @@ def photo_root(tmp_path):
     (incoming / "undated.jpg").write_bytes(jpeg_bytes())
     (incoming / "notes.txt").write_text("not a photo\n")
     return str(root)
+
+
+def tiff_block_big_endian(datetime_original):
+    """The same minimal EXIF block as :func:`tiff_block`, big-endian."""
+    text = datetime_original.encode("ascii").ljust(ASCII_SIZE, b"\x00")
+    main_count = 1
+    main_size = 2 + 12 * main_count + 4
+    exif_ifd_offset = 8 + main_size
+    text_offset = exif_ifd_offset + (2 + 12 + 4)
+    tiff = b"MM" + struct.pack(">H", 42) + struct.pack(">I", 8)
+    tiff += struct.pack(">H", main_count)
+    tiff += struct.pack(">HHI", TAG_EXIF_IFD, TYPE_LONG, 1) + struct.pack(">I", exif_ifd_offset)
+    tiff += struct.pack(">I", 0)
+    tiff += struct.pack(">H", 1)
+    tiff += struct.pack(">HHI", TAG_DATETIME_ORIGINAL, TYPE_ASCII, ASCII_SIZE)
+    tiff += struct.pack(">I", text_offset)
