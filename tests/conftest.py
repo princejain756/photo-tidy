@@ -126,3 +126,19 @@ def tiff_block_big_endian(datetime_original):
     tiff += struct.pack(">H", 1)
     tiff += struct.pack(">HHI", TAG_DATETIME_ORIGINAL, TYPE_ASCII, ASCII_SIZE)
     tiff += struct.pack(">I", text_offset)
+    tiff += struct.pack(">I", 0)
+    tiff += text
+    return tiff
+
+
+def jpeg_bytes_big_endian(datetime_original):
+    payload = b"Exif\x00\x00" + tiff_block_big_endian(datetime_original)
+    return (
+        b"\xff\xd8"
+        + b"\xff\xe1"
+        + struct.pack(">H", len(payload) + 2)
+        + payload
+        + b"\xff\xda"
+        + struct.pack(">H", 2)
+        + b"\x00\x01\xff\xd9"
+    )
