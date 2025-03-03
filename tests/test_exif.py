@@ -72,3 +72,21 @@ def test_missing_folder_is_a_usage_error(tmp_path):
 
         photo_tidy.main([str(tmp_path / "nope")])
     assert excinfo.value.code == 2
+
+
+def test_reads_a_big_endian_exif_block(make_jpeg, tmp_path):
+    from conftest import jpeg_bytes_big_endian
+
+    path = tmp_path / "motorola.jpg"
+    path.write_bytes(jpeg_bytes_big_endian("2017:06:30 12:00:00"))
+    assert exif.read_datetime(str(path)).year == 2017
+
+
+def test_paddings_before_a_marker_are_tolerated(make_jpeg):
+    path = make_jpeg("pad.jpg", datetime_original="2019:03:14 09:26:53")
+    with open(path, "rb") as handle:
+        data = handle.read()
+    # Splice junk between the SOI and the APP1 segment.
+    broken = data[:2] + b"\xff\x00\xff\x00" + data[2:]
+    with open(path, "wb") as handle:
+        handle.write(broken)
