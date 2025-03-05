@@ -90,3 +90,20 @@ def test_paddings_before_a_marker_are_tolerated(make_jpeg):
     broken = data[:2] + b"\xff\x00\xff\x00" + data[2:]
     with open(path, "wb") as handle:
         handle.write(broken)
+    assert exif.read_datetime(path) is not None
+
+
+def test_an_ifd_claiming_more_entries_than_it_has(make_jpeg):
+    path = make_jpeg("short.jpg", datetime_original="2019:03:14 09:26:53")
+    with open(path, "rb") as handle:
+        data = bytearray(handle.read())
+    # The EXIF count word sits 12 bytes into the segment payload.
+    marker = data.index(b"Exif\x00\x00") + 6 + 8
+    data[marker:marker + 2] = b"\xff\x00"
+    with open(path, "wb") as handle:
+        handle.write(bytes(data))
+    assert exif.read_datetime(path) is not None
+
+
+def test_capture_datetime_mtime_fallback_survives_a_missing_file(tmp_path):
+    assert exif.capture_datetime(str(tmp_path / "gone.jpg"), fallback_mtime=True) is None
