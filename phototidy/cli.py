@@ -41,8 +41,22 @@ def build_parser():
         action="store_true",
         help="move the files from the last run back where they came from",
     )
+    parser.add_argument(
+        "--keep-journals",
+        type=int,
+        default=10,
+        metavar="N",
+        help="how many past run journals to keep (default: 10)",
+    )
     parser.add_argument("--version", action="version", version=__version__)
     return parser
+
+
+def _tally(skipped):
+    counts = {}
+    for skip in skipped:
+        counts[skip.reason] = counts.get(skip.reason, 0) + 1
+    return counts
 
 
 def report_plan(plan, out):
@@ -59,13 +73,15 @@ def report_plan(plan, out):
     for skip in plan.skipped:
         out.write("skip   %s (%s)\n" % (display(skip.path, plan.root), skip.reason))
     out.write("\n%d to move, %d skipped\n" % (len(plan.moves), len(plan.skipped)))
+    for reason, count in sorted(_tally(plan.skipped).items()):
+        out.write("         %d %s\n" % (count, reason))
 
 
-def report_result(result, mode, out, root):
+def report_result(result, mode, out, root, done):
+    """Report failures plus a one-line tally for *done* finished transfers."""
     for outcome in result.failed:
         out.write("failed %s (%s)\n" % (display(outcome.source, root), outcome.error))
-    done = len(result.moved) if mode == "move" else len(result.restored)
-    out.write("\n%s %d file(s), %d failed\n" % (mode, done, len(result.failed)))
+    out.write("\n%s %d file(s), %d failed\n" % (mode, len(done), len(result.failed)))
     out.write("journal %s\n" % result.journal)
 
 
@@ -84,7 +100,7 @@ def main(argv=None, out=None):
         except FileNotFoundError as exc:
             out.write("%s\n" % exc)
             return 1
-        report_result(result, "restore", out, root)
+        report_result(result, "restore", out, root, result.restored)
         return 0 if not result.failed else 1
 
     plan = build_plan(
@@ -96,11 +112,3 @@ def main(argv=None, out=None):
     report_plan(plan, out)
     if not args.run:
         return 0
-
-    result = execute(plan)
-    report_result(result, "move", out, root)
-    return 0 if not result.failed else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
