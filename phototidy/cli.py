@@ -112,3 +112,11 @@ def main(argv=None, out=None):
     report_plan(plan, out)
     if not args.run:
         return 0
+
+    result = execute(plan, keep_journals=args.keep_journals)
+    report_result(result, "move", out, root, result.moved)
+    return 0 if not result.failed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
