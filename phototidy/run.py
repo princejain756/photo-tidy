@@ -16,6 +16,7 @@ from .plan import display
 
 JOURNAL_DIRECTORY = ".phototidy"
 JOURNAL_PREFIX = "journal-"
+KEEP_JOURNALS = 10
 
 
 class Outcome(NamedTuple):
@@ -46,9 +47,20 @@ def journal_folder(root):
 
 
 def journal_path(root, stamp=None):
-    """Path of a new journal, named so a lexical sort is chronological."""
+    """Path of a new journal, named so a lexical sort is chronological.
+
+    Two runs can land in the same second, so an existing name is suffixed
+    rather than reused; that keeps the earlier journal intact.
+    """
     stamp = stamp or time.strftime("%Y%m%dT%H%M%S")
-    return os.path.join(journal_folder(root), "%s%s.jsonl" % (JOURNAL_PREFIX, stamp))
+    candidate = os.path.join(journal_folder(root), "%s%s.jsonl" % (JOURNAL_PREFIX, stamp))
+    counter = 1
+    while os.path.exists(candidate):
+        candidate = os.path.join(
+            journal_folder(root), "%s%s-%d.jsonl" % (JOURNAL_PREFIX, stamp, counter)
+        )
+        counter += 1
+    return candidate
 
 
 def list_journals(root):
@@ -58,6 +70,18 @@ def list_journals(root):
         return []
     names = [name for name in os.listdir(folder) if name.startswith(JOURNAL_PREFIX)]
     return [os.path.join(folder, name) for name in sorted(names)]
+
+
+def prune_journals(root, keep=KEEP_JOURNALS):
+    """Delete all but the *keep* newest journals and return their paths."""
+    journals = list_journals(root)
+    stale = journals[:-keep] if keep > 0 else journals
+    for path in stale:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    return stale
 
 
 def latest_journal(root):
@@ -97,9 +121,14 @@ def _move_one(move):
         shutil.move(move.source, move.target)
 
 
-def execute(plan, stamp=None):
-    """Perform every move in *plan*, journalling as it goes."""
+def execute(plan, stamp=None, keep_journals=KEEP_JOURNALS):
+    """Perform every move in *plan*, journalling as it goes.
+
+    Older journals beyond *keep_journals* are pruned first, so a folder
+    tidied often does not accumulate bookkeeping forever.
+    """
     os.makedirs(journal_folder(plan.root), exist_ok=True)
+    prune_journals(plan.root, keep=max(keep_journals - 1, 0))
     path = journal_path(plan.root, stamp)
     moved = []
     failed = []
@@ -127,28 +156,12 @@ def _prune(path, root):
 
 
 def undo(root, journal=None):
-    """Move every file named in *journal* back, newest entry first."""
+    """Move every file named in *journal* back, newest entry first.
+
+    A journal is deleted once it has been undone in full, so a second
+    ``--undo`` reaches the run before it instead of replaying stale moves.
+    """
     root = os.path.abspath(root)
     path = journal or latest_journal(root)
     if path is None:
         raise FileNotFoundError("no journal to undo in %s" % root)
-
-    restored = []
-    failed = []
-    for record in reversed(read_journal(path)):
-        source = record["source"]
-        target = record["target"]
-        if not os.path.exists(target):
-            failed.append(Outcome(target, source, "moved file is gone"))
-            continue
-        folder = os.path.dirname(source)
-        if folder:
-            os.makedirs(folder, exist_ok=True)
-        try:
-            _move_one(Transfer(target, source))
-        except OSError as exc:
-            failed.append(Outcome(target, source, str(exc)))
-            continue
-        restored.append(display(source, root))
-        _prune(os.path.dirname(target), root)
-    return UndoResult(restored, failed, path)
