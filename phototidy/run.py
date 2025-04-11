@@ -165,3 +165,19 @@ def undo(root, journal=None):
     path = journal or latest_journal(root)
     if path is None:
         raise FileNotFoundError("no journal to undo in %s" % root)
+
+    restored = []
+    failed = []
+    for record in reversed(read_journal(path)):
+        source = record.get("source")
+        target = record.get("target")
+        if not source or not target:
+            failed.append(Outcome(str(target), str(source), "incomplete journal record"))
+            continue
+        if not os.path.exists(target):
+            failed.append(Outcome(target, source, "moved file is gone"))
+            continue
+        folder = os.path.dirname(source)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        try:
