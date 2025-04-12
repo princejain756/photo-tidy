@@ -181,3 +181,16 @@ def undo(root, journal=None):
         if folder:
             os.makedirs(folder, exist_ok=True)
         try:
+            _move_one(Transfer(target, source))
+        except OSError as exc:
+            failed.append(Outcome(target, source, str(exc)))
+            continue
+        restored.append(display(source, root))
+        _prune(os.path.dirname(target), root)
+
+    if not failed:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    return UndoResult(restored, failed, path)
