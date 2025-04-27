@@ -122,3 +122,23 @@ def test_script_entry_point_delegates_to_the_cli():
     import photo_tidy
 
     assert photo_tidy.main is cli.main
+
+
+def test_summary_counts_each_skip_reason(photo_root):
+    _, out = run([photo_root])
+    assert "1 no capture date" in out
+
+
+def test_keep_journals_limits_how_many_survive(photo_root):
+    from phototidy.run import list_journals
+
+    for _ in range(3):
+        cli.main([photo_root, "--run", "--keep-journals", "1"], out=io.StringIO())
+        for move in ("2019/03/a.jpg", "2020/12/b.JPG", "2020/12/c.jpeg"):
+            target = os.path.join(photo_root, move)
+            if os.path.exists(target):
+                os.unlink(target)
+    assert len(list_journals(photo_root)) == 1
+
+
+def test_keep_journals_rejects_a_non_number(photo_root):
