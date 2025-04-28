@@ -142,3 +142,23 @@ def test_keep_journals_limits_how_many_survive(photo_root):
 
 
 def test_keep_journals_rejects_a_non_number(photo_root):
+    with pytest.raises(SystemExit) as excinfo:
+        run([photo_root, "--keep-journals", "lots"])
+    assert excinfo.value.code == 2
+
+
+def test_undo_deletes_the_journal_so_it_cannot_replay(photo_root):
+    from phototidy.run import list_journals
+
+    cli.main([photo_root, "--run"], out=io.StringIO())
+    cli.main([photo_root, "--undo"], out=io.StringIO())
+    assert list_journals(photo_root) == []
+
+
+def test_a_second_undo_after_a_fresh_run_restores_it(photo_root):
+    cli.main([photo_root, "--run"], out=io.StringIO())
+    cli.main([photo_root, "--undo"], out=io.StringIO())
+    cli.main([photo_root, "--run"], out=io.StringIO())
+    code, _ = run([photo_root, "--undo"])
+    assert code == 0
+    assert os.path.exists(os.path.join(photo_root, "incoming", "a.jpg"))
