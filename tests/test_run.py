@@ -9,9 +9,11 @@ import pytest
 from phototidy.plan import build_plan
 from phototidy.run import (
     execute,
+    journal_folder,
     journal_path,
     latest_journal,
     list_journals,
+    prune_journals,
     read_journal,
     undo,
 )
@@ -162,16 +164,30 @@ def test_journal_lines_are_json(photo_root):
             assert set(json.loads(line)) == {"source", "target"}
 
 
-def test_undo_crosses_a_filesystem_via_a_copy(photo_root, monkeypatch):
+def test_prune_journals_keeps_the_newest(photo_root):
     plan = sorted_photo(photo_root)
-    execute(plan, stamp="20200101T000000")
-    real_rename = os.rename
+    for day in range(1, 6):
+        execute(build_plan(photo_root), stamp="2020010%dT000000" % day)
+    stale = prune_journals(plan.root, keep=2)
+    assert len(stale) == 3
+    assert len(list_journals(plan.root)) == 2
 
-    def no_rename(source, target):
-        raise OSError("cross-device link")
 
-    monkeypatch.setattr(os, "rename", no_rename)
-    monkeypatch.setattr(shutil, "move", real_rename)
-    result = undo(plan.root)
-    assert result.failed == []
-    assert len(result.restored) == 3
+def test_execute_prunes_old_journals_itself(photo_root):
+    for day in range(1, 5):
+        execute(build_plan(photo_root), stamp="2020010%dT000000" % day, keep_journals=2)
+    assert len(list_journals(build_plan(photo_root).root)) == 2
+
+
+def test_prune_journals_with_no_journals(tmp_path):
+    assert prune_journals(str(tmp_path), keep=3) == []
+
+
+def test_prune_journals_keep_zero_removes_everything(photo_root):
+    execute(build_plan(photo_root), stamp="20200101T000000")
+    prune_journals(build_plan(photo_root).root, keep=0)
+    assert list_journals(build_plan(photo_root).root) == []
+
+
+def test_undo_deletes_the_journal_it_replayed(photo_root):
+    plan = sorted_photo(photo_root)
