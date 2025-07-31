@@ -191,3 +191,20 @@ def test_prune_journals_keep_zero_removes_everything(photo_root):
 
 def test_undo_deletes_the_journal_it_replayed(photo_root):
     plan = sorted_photo(photo_root)
+    result = execute(plan, stamp="20200101T000000")
+    undo(plan.root)
+    assert not os.path.exists(result.journal)
+
+
+def test_a_second_undo_reaches_the_earlier_run(photo_root):
+    plan = sorted_photo(photo_root)
+    execute(plan, stamp="20200101T000000")
+    undo(plan.root)
+    os.unlink(os.path.join(plan.root, "incoming", "a.jpg"))
+    execute(build_plan(plan.root), stamp="20200102T000000")
+    undo(plan.root)
+    assert sorted(os.listdir(os.path.join(plan.root, "incoming"))) == [
+        "b.JPG",
+        "c.jpeg",
+        "notes.txt",
+        "undated.jpg",
