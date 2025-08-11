@@ -208,3 +208,18 @@ def test_a_second_undo_reaches_the_earlier_run(photo_root):
         "c.jpeg",
         "notes.txt",
         "undated.jpg",
+    ]
+
+
+def test_a_failed_undo_keeps_its_journal(photo_root):
+    plan = sorted_photo(photo_root)
+    result = execute(plan, stamp="20200101T000000")
+    os.unlink(plan.moves[0].target)
+    undo(plan.root)
+    assert os.path.exists(result.journal)
+
+
+def test_undo_crosses_a_filesystem_via_a_copy(photo_root, monkeypatch):
+    plan = sorted_photo(photo_root)
+    execute(plan, stamp="20200101T000000")
+    real_rename = os.rename
