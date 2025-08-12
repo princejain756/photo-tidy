@@ -223,3 +223,20 @@ def test_undo_crosses_a_filesystem_via_a_copy(photo_root, monkeypatch):
     plan = sorted_photo(photo_root)
     execute(plan, stamp="20200101T000000")
     real_rename = os.rename
+
+    def no_rename(source, target):
+        raise OSError("cross-device link")
+
+    monkeypatch.setattr(os, "rename", no_rename)
+    monkeypatch.setattr(shutil, "move", real_rename)
+    result = undo(plan.root)
+    assert result.failed == []
+    assert len(result.restored) == 3
+
+
+def test_two_runs_in_the_same_second_keep_both_journals(photo_root):
+    plan = sorted_photo(photo_root)
+    first = execute(plan, stamp="20200101T000000")
+    second = execute(build_plan(photo_root), stamp="20200101T000000")
+    assert first.journal != second.journal
+    assert len(read_journal(first.journal)) == 3
