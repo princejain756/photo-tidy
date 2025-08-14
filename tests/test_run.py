@@ -240,3 +240,19 @@ def test_two_runs_in_the_same_second_keep_both_journals(photo_root):
     second = execute(build_plan(photo_root), stamp="20200101T000000")
     assert first.journal != second.journal
     assert len(read_journal(first.journal)) == 3
+
+
+def test_journal_name_is_suffixed_when_the_stamp_is_taken(photo_root):
+    root = build_plan(photo_root).root
+    os.makedirs(journal_folder(root), exist_ok=True)
+    taken = journal_path(root, "20200101T000000")
+    open(taken, "w").close()
+    assert journal_path(root, "20200101T000000").endswith("20200101T000000-1.jsonl")
+
+
+def test_a_malformed_journal_record_is_reported(photo_root):
+    path = os.path.join(photo_root, "broken.jsonl")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write('{"source": "only-the-source"}\n')
+    result = undo(photo_root, journal=path)
+    assert result.failed[0].error == "incomplete journal record"
