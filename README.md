@@ -42,6 +42,10 @@ photo-tidy DIRECTORY [options]
 | `--duplicates` | Report byte-identical files and move only one copy. |
 | `--mtime` | Fall back to the file modification time when a photo has no EXIF date. |
 | `--ext EXT` | Treat an extra extension as a photo, e.g. `--ext cr2`. Repeatable. |
+| `--quiet` | Print only the summary lines, for cron and scripts. |
+| `--keep-journals N` | Keep only the *N* most recent run journals (default: 10). |
+| `--quiet` | Print only the summary lines, for cron and scripts. |
+| `--keep-journals N` | Keep only the *N* most recent run journals (default: 10). |
 | `--undo` | Move the files from the last run back where they came from. |
 | `--version` | Print the version. |
 
@@ -55,6 +59,12 @@ photo-tidy ~/Pictures/import
 
 Check the plan, then repeat the command with `--run`.
 
+In a cron job or script, add `--quiet` to keep the log to one summary block:
+
+```
+photo-tidy ~/Pictures/import --run --quiet --keep-journals 3
+```
+
 ### Undo
 
 Every run writes a journal to `DIRECTORY/.phototidy/`. To reverse the most
@@ -65,7 +75,8 @@ photo-tidy ~/Pictures/import --undo
 ```
 
 Undo replays the newest journal backwards and removes year/month folders it
-emptied. Journals are kept so that older runs stay reversible; delete the
+emptied. The last ten journals are kept so that recent runs stay reversible;
+older ones are pruned, and `--keep-journals N` changes that. Delete the
 `.phototidy` folder once you are happy with the result.
 
 ## What counts as a photo
