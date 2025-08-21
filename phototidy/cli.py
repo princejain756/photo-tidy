@@ -48,6 +48,11 @@ def build_parser():
         metavar="N",
         help="how many past run journals to keep (default: 10)",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="print only the summary, not one line per file",
+    )
     parser.add_argument("--version", action="version", version=__version__)
     return parser
 
@@ -59,7 +64,15 @@ def _tally(skipped):
     return counts
 
 
-def report_plan(plan, out):
+def report_plan(plan, out, quiet=False):
+    if not quiet:
+        _report_entries(plan, out)
+    out.write("\n%d to move, %d skipped\n" % (len(plan.moves), len(plan.skipped)))
+    for reason, count in sorted(_tally(plan.skipped).items()):
+        out.write("         %d %s\n" % (count, reason))
+
+
+def _report_entries(plan, out):
     for duplicate in plan.duplicates:
         out.write(
             "dup    %s = %s\n"
@@ -72,9 +85,6 @@ def report_plan(plan, out):
         )
     for skip in plan.skipped:
         out.write("skip   %s (%s)\n" % (display(skip.path, plan.root), skip.reason))
-    out.write("\n%d to move, %d skipped\n" % (len(plan.moves), len(plan.skipped)))
-    for reason, count in sorted(_tally(plan.skipped).items()):
-        out.write("         %d %s\n" % (count, reason))
 
 
 def report_result(result, mode, out, root, done):
@@ -109,7 +119,7 @@ def main(argv=None, out=None):
         fallback_mtime=args.mtime,
         collapse_duplicates=args.duplicates,
     )
-    report_plan(plan, out)
+    report_plan(plan, out, quiet=args.quiet)
     if not args.run:
         return 0
 
