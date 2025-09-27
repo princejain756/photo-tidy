@@ -162,3 +162,13 @@ def test_a_second_undo_after_a_fresh_run_restores_it(photo_root):
     code, _ = run([photo_root, "--undo"])
     assert code == 0
     assert os.path.exists(os.path.join(photo_root, "incoming", "a.jpg"))
+
+
+def test_quiet_prints_only_the_summary(photo_root):
+    code, out = run([photo_root, "--quiet"])
+    assert code == 0
+    assert "move   incoming/a.jpg" not in out
+    assert "3 to move, 1 skipped" in out
+
+
+def test_quiet_still_lists_skip_reason_totals(photo_root):
