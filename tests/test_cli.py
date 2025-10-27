@@ -172,3 +172,12 @@ def test_quiet_prints_only_the_summary(photo_root):
 
 
 def test_quiet_still_lists_skip_reason_totals(photo_root):
+    _, out = run([photo_root, "--quiet"])
+    assert "1 no capture date" in out
+
+
+def test_quiet_with_run_still_reports_the_outcome(photo_root):
+    code, out = run([photo_root, "--run", "--quiet"])
+    assert code == 0
+    assert "move 3 file(s), 0 failed" in out
+    assert os.path.exists(os.path.join(photo_root, "2019", "03", "a.jpg"))
